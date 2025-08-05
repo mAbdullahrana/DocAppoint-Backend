@@ -3,6 +3,7 @@ const Appointment = require("../models/appointmentModel");
 const AppError = require("../util/appError");
 const User = require("../models/userModel");
 const { getIO } = require("../socket");
+const Notification = require("../models/notificationModel");
 
 exports.createAppointment = catchAsync(async (req, res, next) => {
   const { doctor, date, slotStart, slotEnd } = req.body;
@@ -38,26 +39,36 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
     return next(new AppError("Failed to create appointment", 400));
   }
 
- 
   const populatedAppointment = await Appointment.findById(appointment._id)
     .populate("patient", "name email phone")
     .populate("doctor", "name email phone");
 
+  const notification = await Notification.create({
+    type: "appointment",
+    title: "New Appointment",
+    message: `You have a new appointment with ${populatedAppointment.patient.name} on ${new Date(populatedAppointment.date).toLocaleDateString()} at ${populatedAppointment.slotStart}`,
+    user: populatedAppointment.doctor._id,
+  });
 
   try {
     const io = getIO();
-   
+
     io.to(`user_${appointment.doctor._id}`).emit(
       "newAppointment",
       populatedAppointment
     );
+
     io.to(`user_${appointment.patient._id}`).emit(
       "newAppointment",
       populatedAppointment
     );
+
+    io.to(`user_${appointment.doctor._id}`).emit(
+      "newNotification",
+      notification
+    );
   } catch (error) {
     console.error("Socket emission failed:", error);
-  
   }
 
   res.status(201).json({
@@ -91,6 +102,8 @@ exports.getAllAppointments = catchAsync(async (req, res, next) => {
 
   if (req.user.role === "doctor") {
     query = { doctor: req.user._id };
+  } else if (req.user.role === "admin") {
+    query = {};
   } else {
     query = { patient: req.user._id };
   }
@@ -98,7 +111,7 @@ exports.getAllAppointments = catchAsync(async (req, res, next) => {
   const appointments = await Appointment.find(query)
     .populate("patient", "name email phone")
     .populate("doctor", "name email phone")
-    .sort({ date: 1, slotStart: 1 }); // Sort by date and time
+    .sort({ createdAt: -1 }); // Sort by date and time
 
   res.status(200).json({
     status: "success",

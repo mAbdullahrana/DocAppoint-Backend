@@ -41,7 +41,19 @@ const transactionSchema = new mongoose.Schema({
     required: true,
   },
 
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+
 });
+
+// transactionSchema.pre(/^find/, function (next) {
+//   if (this.getOptions().requestedBy === "admin") {
+//     this.find({ active: { $ne: true } });
+//   }
+//   next();
+// });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
 

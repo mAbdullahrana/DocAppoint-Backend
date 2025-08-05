@@ -40,16 +40,20 @@ const userSchema = new mongoose.Schema({
         return val === this.password;
       },
       message: "Passwords do not match",
+      select: false,
     },
+  },
+
+  profilePicture: {
+    type: String,
+    default: null,
   },
 
   startTime: {
     type: Date,
-  
   },
   endTime: {
     type: Date,
-  
   },
   duration: {
     type: Number,
@@ -59,6 +63,10 @@ const userSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  active: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 userSchema.pre("save", async function (next) {
@@ -66,6 +74,21 @@ userSchema.pre("save", async function (next) {
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
+  next();
+});
+
+
+
+
+userSchema.pre(/^find/, async function (next) {
+
+  
+  // Checking if this is a population query
+  const isPopulation = this.getQuery()._id && typeof this.getQuery()._id === 'object';
+  
+  if (this.getOptions().requestedBy !== "admin" && !isPopulation) {
+    this.find({ active: { $ne: false } });
+  } 
   next();
 });
 

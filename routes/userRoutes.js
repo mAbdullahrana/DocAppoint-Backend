@@ -4,9 +4,16 @@ const authController = require("../controllers/authController");
 
 const router = express.Router();
 
-router.patch("/updateMe", authController.protect, userController.updateMe);
+router.patch(
+  "/updateMe",
+  authController.protect,
+  userController.uploadProfilePicture,
+  userController.updateMe
+);
 
-router.route("/").get(authController.protect, userController.getAllUsers);
+router
+  .route("/patient")
+  .get(authController.protect, userController.getAllPatients);
 router
   .route("/doctor")
   .get(authController.protect, userController.getAllDoctors);

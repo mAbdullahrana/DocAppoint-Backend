@@ -38,9 +38,13 @@ const appointmentSchema = new mongoose.Schema({
     enum: ["pending", "succeeded", "failed", "refunded"],
     default: "pending",
   },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-// Create a compound unique index to prevent double booking
+
 // This ensures no two appointments can have the same doctor, date, and time slot
 appointmentSchema.index(
   { doctor: 1, date: 1, slotStart: 1, slotEnd: 1 },

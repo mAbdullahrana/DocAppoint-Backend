@@ -4,6 +4,7 @@ const Transaction = require("../models/transactionModel");
 const AppError = require("../util/appError");
 const Appointment = require("../models/appointmentModel");
 
+
 exports.createPaymentIntent = catchAsync(async (req, res, next) => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -12,8 +13,6 @@ exports.createPaymentIntent = catchAsync(async (req, res, next) => {
     amount: 50,
     currency: "usd",
   });
-
-  console.log("appointmentID", req.body);
 
   await Transaction.create({
     amount: 50,
@@ -25,10 +24,9 @@ exports.createPaymentIntent = catchAsync(async (req, res, next) => {
     appointment: appointmentID,
   });
 
-   await Appointment.findByIdAndUpdate(appointmentID, {
+  await Appointment.findByIdAndUpdate(appointmentID, {
     paymentStatus: "pending",
   });
-
 
   res.status(200).json({
     success: true,
@@ -47,7 +45,7 @@ exports.updatePaymentStatus = catchAsync(async (req, res, next) => {
   }
 
   try {
-    // Find and update the transaction
+   
     const transaction = await Transaction.findOneAndUpdate(
       { paymentClientSecret: { $regex: paymentIntentId } },
       {
@@ -80,4 +78,56 @@ exports.updatePaymentStatus = catchAsync(async (req, res, next) => {
       message: "Failed to update payment status",
     });
   }
+});
+
+exports.getTransactions = catchAsync(async (req, res, next) => {
+  const search = req.query.search || "";
+  const status = req.query.status || "all";
+  const page = req.query.page || 1;
+  const limit = req.query.limit || 10;
+  const skip = (page - 1) * limit;
+
+  if (req.user.role !== "admin") {
+    return next(
+      new AppError("You are not authorized to access this resource", 403)
+    );
+  }
+
+  let query = {};
+  if (status !== "all") {
+    query.paymentStatus = status;
+  }
+
+  let transactions = await Transaction.find(query)
+    .populate("paidBy", "name email")
+    .populate("paidTo", "name email")
+    .populate("appointment", "date time")
+    .skip(skip)
+    .limit(limit)
+    .setOptions({
+      requestedBy: req.user.role,
+    });
+
+  if (search) {
+    const searchLower = search.toLowerCase();
+    transactions = transactions.filter(
+      (tx) =>
+        (tx.paidBy &&
+          tx.paidBy.name &&
+          tx.paidBy.name.toLowerCase().includes(searchLower)) ||
+        (tx.paidTo &&
+          tx.paidTo.name &&
+          tx.paidTo.name.toLowerCase().includes(searchLower))
+    );
+  }
+
+  const totalTransactions = await Transaction.countDocuments(query);
+  const totalPages = Math.ceil(totalTransactions / limit);
+
+  
+  res.status(200).json({
+    success: true,
+    transactions,
+    totalPages,
+  });
 });
