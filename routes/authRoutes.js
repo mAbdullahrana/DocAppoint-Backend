@@ -6,11 +6,14 @@ const router = express.Router();
 
 router.post("/signup", authController.signup);
 router.post("/login", authController.login);
-router.get(
-  "/google-login",
-  passport.authenticate("google", ["profile", "email"])
-);
 
+router.get("/google-login", (req, res, next) => {
+  const role = req.query.role
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    state: role,
+  })(req, res, next);
+});
 
 router.get(
   "/google-callback",
