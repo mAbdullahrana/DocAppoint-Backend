@@ -1,3 +1,6 @@
+const dotenv = require("dotenv");
+dotenv.config({ path: "./config.env" });
+
 const express = require("express");
 const userRouter = require("./routes/userRoutes");
 const authRouter = require("./routes/authRoutes");
@@ -13,6 +16,7 @@ const messagesRouter = require("./routes/messagesRoutes");
 const path = require("path");
 const adminRouter = require("./routes/adminRoutes");
 const notificationRouter = require("./routes/notificationRoutes");
+const passport = require("passport");
 
 // Configure multer for file uploads
 // const storage = multer.diskStorage({
@@ -30,15 +34,17 @@ const notificationRouter = require("./routes/notificationRoutes");
 
 // const upload = multer({ storage: storage });
 
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors());
 
+app.use(passport.initialize());
+
+require("./util/passport")();
+
 app.use("/public", express.static(path.join(__dirname, "public")));
 // app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/appointments", appointmentRouter);
@@ -47,8 +53,8 @@ app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/transactions", transactionRouter);
 app.use("/api/v1/chat-groups", chatGroupRouter);
 app.use("/api/v1/messages", messagesRouter);
-app.use("/api/v1/admin", adminRouter  ); 
-app.use("/api/v1/notification" , notificationRouter)
+app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/notification", notificationRouter);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));

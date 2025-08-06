@@ -1,10 +1,9 @@
 const { default: mongoose } = require("mongoose");
 const app = require("./app");
-const dotenv = require("dotenv");
+
 const http = require('http');
 const { initSocket } = require('./socket');
 
-dotenv.config({ path: "./config.env" });
 
 const DB = process.env.DATABASE.replace(
   "<PASSWORD>",

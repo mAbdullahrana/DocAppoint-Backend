@@ -3,6 +3,10 @@ const validator = require("validator");
 const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema({
+  googleId: {
+    type: String,
+    default: null,
+  },
   name: {
     type: String,
     required: true,
@@ -18,7 +22,7 @@ const userSchema = new mongoose.Schema({
 
   phone: {
     type: String,
-    required: true,
+    default: null,
   },
   role: {
     type: String,

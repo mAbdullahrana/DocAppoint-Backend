@@ -4,6 +4,7 @@ const AppError = require("../util/appError");
 const catchAsync = require("../util/catchAsync");
 const jwt = require("jsonwebtoken");
 
+
 function signToken(id) {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_COOKIE_EXPIRES,
@@ -80,4 +81,40 @@ exports.protect = catchAsync(async (req, res, next) => {
   req.user = currentUser;
 
   next();
+});
+
+exports.googleCallback = catchAsync(async (req, res, next) => {
+ 
+  console.log("User from passport:", req.user);
+
+  if (!req.user) {
+    return next(new AppError("Google authentication failed", 401));
+  }
+
+  let user = await User.findOne({ email: req.user.emails[0].value });
+  if (!user) {
+    const newUser = await User.create({
+      googleId: req.user.id,
+      name: req.user.displayName,
+      email: req.user.emails[0].value,
+      password: req.user.id,
+      passwordConfirm: req.user.id,
+      role: "patient",
+    });
+    user = newUser;
+  }
+
+  const token = signToken(user._id);
+
+  // Remove password from response
+  user.password = undefined;
+
+  // Redirect to frontend with token
+  res.redirect(
+    `${
+      process.env.FRONTEND_URL
+    }/oauth-callback?token=${token}&user=${encodeURIComponent(
+      JSON.stringify(user)
+    )}`
+  );
 });
