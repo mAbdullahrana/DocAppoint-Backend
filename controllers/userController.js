@@ -87,7 +87,8 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     "startTime",
     "endTime",
     "duration",
-    "days"
+    "days",
+    "twoFactorEnabled"
   );
 
   if (req.file) filteredBody.profilePicture = req.file.filename;

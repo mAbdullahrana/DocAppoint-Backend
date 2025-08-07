@@ -6,6 +6,32 @@ const jwt = require("jsonwebtoken");
 const { sendEmail } = require("../util/email");
 const crypto = require("crypto");
 
+async function sendOtp(user, res, next) {
+  const otp = user.createOtp();
+  await user.save({ validateBeforeSave: false });
+
+  const message = `Your OTP for MedAppoint is ${otp}`;
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "OTP for MedAppoint",
+      message,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "OTP sent to your email",
+      email: user.email,
+    });
+  } catch (err) {
+    console.log(err);
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+    return next(new AppError("Error sending email", 500));
+  }
+}
 function signToken(id) {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_COOKIE_EXPIRES,
@@ -59,34 +85,24 @@ exports.signup = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).select("+password").setOptions({ allowInactiveUsers: true });
+  const user = await User.findOne({ email })
+    .select("+password")
+    .setOptions({ allowInactiveUsers: true });
 
   if (!user || !(await user.correctPassword(password, user.password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
-
-  const otp = user.createOtp();
-  await user.save({ validateBeforeSave: false });
-  const message = `Your OTP for MedAppoint is ${otp}`;
-
-  try {
-    await sendEmail({
-      email: user.email,
-      subject: "OTP for MedAppoint",
-      message,
-    });
+  if (user.twoFactorEnabled) {
+    await sendOtp(user, res, next);
+  } else {
+    const token = signToken(user._id);
+    user.password = undefined;
 
     res.status(200).json({
       status: "success",
-      message: "OTP sent to your email",
-      email: user.email,
+      token,
+      user,
     });
-  } catch (err) {
-    console.log(err);
-    user.otp = undefined;
-    user.otpExpiry = undefined;
-    await user.save({ validateBeforeSave: false });
-    return next(new AppError("Error sending email", 500));
   }
 });
 
@@ -101,14 +117,13 @@ exports.verifyOtp = catchAsync(async (req, res, next) => {
   let user = await User.findOne({
     otp: hashedOtp,
     otpExpiry: { $gt: Date.now() },
-  }).setOptions({ allowInactiveUsers: true }); 
+  }).setOptions({ allowInactiveUsers: true });
 
   if (!user) {
     return next(new AppError("Invalid OTP", 400));
   }
   if (!user.active) {
     user.active = true;
-    
   }
   user.otp = undefined;
   user.otpExpiry = undefined;
@@ -218,4 +233,30 @@ exports.googleCallback = catchAsync(async (req, res, next) => {
       JSON.stringify(user)
     )}`
   );
+});
+
+exports.changePassword = catchAsync(async (req, res, next) => {
+  const { oldPassword, newPassword, confirmNewPassword } = req.body;
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    return next(new AppError("Passwords do not match", 400));
+  }
+
+  if (!(await user.correctPassword(oldPassword, user.password))) {
+    return next(new AppError("Incorrect password", 401));
+  }
+
+  user.password = newPassword;
+  user.passwordConfirm = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Password changed successfully",
+  });
 });

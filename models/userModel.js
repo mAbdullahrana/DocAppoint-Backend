@@ -76,9 +76,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  twoFactorSecret: {
-    type: String,
-  },
+
 
   otp: String,
   otpExpiry: Date,
@@ -86,10 +84,6 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-
-  if (!this.password) {
-    return next(new Error("Password is required"));
-  }
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;

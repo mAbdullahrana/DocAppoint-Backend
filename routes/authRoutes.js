@@ -8,6 +8,7 @@ router.post("/signup", authController.signup);
 router.post("/login", authController.login);
 router.post("/verify-otp", authController.verifyOtp);
 router.post("/resend-otp", authController.resendOtp);
+router.post("/change-password", authController.protect, authController.changePassword);
 
 router.get("/google-login", (req, res, next) => {
   const role = req.query.role
