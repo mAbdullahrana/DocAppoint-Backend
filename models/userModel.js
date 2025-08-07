@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema({
   googleId: {
@@ -71,28 +72,42 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  twoFactorSecret: {
+    type: String,
+  },
+
+  otp: String,
+  otpExpiry: Date,
 });
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
+
+  if (!this.password) {
+    return next(new Error("Password is required"));
+  }
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
   next();
 });
 
-
-
-
 userSchema.pre(/^find/, async function (next) {
-
-  
   // Checking if this is a population query
-  const isPopulation = this.getQuery()._id && typeof this.getQuery()._id === 'object';
-  
-  if (this.getOptions().requestedBy !== "admin" && !isPopulation) {
+  const isPopulation =
+    this.getQuery()._id && typeof this.getQuery()._id === "object";
+
+  // Check if we should allow inactive users (for OTP functions)
+  const allowInactiveUsers = this.getOptions().allowInactiveUsers;
+  const isAdminRequest = this.getOptions().requestedBy === "admin";
+
+  if (!isAdminRequest && !allowInactiveUsers && !isPopulation) {
     this.find({ active: { $ne: false } });
-  } 
+  }
   next();
 });
 
@@ -101,6 +116,17 @@ userSchema.methods.correctPassword = async function (
   userPassword
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.createOtp = function () {
+  const otp = Math.floor(100000 + Math.random() * 900000);
+  const encryptedOtp = crypto
+    .createHash("sha256")
+    .update(otp.toString())
+    .digest("hex");
+  this.otp = encryptedOtp;
+  this.otpExpiry = Date.now() + 1 * 60 * 1000;
+  return otp;
 };
 
 const User = mongoose.model("User", userSchema);
