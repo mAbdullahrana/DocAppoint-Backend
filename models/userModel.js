@@ -80,6 +80,8 @@ const userSchema = new mongoose.Schema({
 
   otp: String,
   otpExpiry: Date,
+  resetPasswordToken: String,
+  resetPasswordExpiry: Date,
 });
 
 userSchema.pre("save", async function (next) {
@@ -110,6 +112,16 @@ userSchema.methods.correctPassword = async function (
   userPassword
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.createResetPasswordToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.resetPasswordExpiry = Date.now() + 10 * 60 * 1000;
+  return resetToken;
 };
 
 userSchema.methods.createOtp = function () {
