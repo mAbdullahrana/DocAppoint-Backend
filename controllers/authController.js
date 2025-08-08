@@ -299,7 +299,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
 exports.resetPassword = catchAsync(async (req, res, next) => {
   const { token } = req.params;
-  const { newPassword, confirmNewPassword  } = req.body;
+  const { newPassword, confirmNewPassword } = req.body;
 
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -322,4 +322,34 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
     status: "success",
     message: "Password reset successfully",
   });
+});
+
+// backend/controllers/authController.js
+// Keep your existing googleCallback function as is
+// Add this new function for calendar callback:
+
+exports.googleCalendarCallback = catchAsync(async (req, res, next) => {
+  if (!req.user) {
+    return next(new AppError("Google Calendar authentication failed", 401));
+  }
+
+  console.log("req.user from googleCalendarCallback", req.user);
+  const user = await User.findOne({ email: req.user.emails[0].value });
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  user.googleCalendarTokens = {
+    accessToken: req.user.accessToken,
+  };
+
+  // Enable calendar sync by default
+  user.calendarSyncEnabled = true;
+
+  await user.save({ validateBeforeSave: false });
+
+  res.redirect(
+    `${process.env.FRONTEND_URL}/dashboard/settings?calendar=connected`
+  );
 });

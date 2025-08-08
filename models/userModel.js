@@ -76,8 +76,18 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-
-
+  googleCalendarTokens: {
+    accessToken: {
+      type: String,
+      default: null,
+    },
+   
+  
+  },
+  calendarSyncEnabled: {
+    type: Boolean,
+    default: false,
+  },
   otp: String,
   otpExpiry: Date,
   resetPasswordToken: String,

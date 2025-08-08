@@ -17,6 +17,7 @@ const path = require("path");
 const adminRouter = require("./routes/adminRoutes");
 const notificationRouter = require("./routes/notificationRoutes");
 const passport = require("passport");
+const calenderRouter = require("./routes/calenderRoutes");
 
 // Configure multer for file uploads
 // const storage = multer.diskStorage({
@@ -55,6 +56,7 @@ app.use("/api/v1/chat-groups", chatGroupRouter);
 app.use("/api/v1/messages", messagesRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/notification", notificationRouter);
+app.use("/api/v1/calender", calenderRouter);  
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));

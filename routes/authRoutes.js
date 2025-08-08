@@ -29,4 +29,26 @@ router.get(
   authController.googleCallback
 );
 
+
+
+router.get("/google-calendar", (req, res, next) => {
+  passport.authenticate("google-calendar", {
+    scope: [
+      "profile", 
+      "email",
+      "https://www.googleapis.com/auth/calendar"
+      // "https://www.googleapis.com/auth/calendar.events"
+    ],
+  })(req, res, next);
+});
+
+router.get(
+  "/google-calendar-callback",
+  passport.authenticate("google-calendar", {
+    session: false,
+    failureRedirect: `${process.env.FRONTEND_URL}/dashboard/settings`,
+  }),
+  authController.googleCalendarCallback
+);
+
 module.exports = router;
