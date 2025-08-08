@@ -1,20 +1,32 @@
 const { google } = require("googleapis");
+const TokenRefreshService = require("./tokenRefreshService");
 
 class GoogleCalendarService {
-  constructor(accessToken) {
-    // Create OAuth2 client
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({
-      access_token: accessToken,
-    });
-
-    this.calendar = google.calendar({
-      version: "v3",
-      auth: oauth2Client,
-    });
+  constructor(userId) { // Change to accept userId instead of accessToken
+    this.userId = userId;
+  }
+  
+  async initializeCalendar() {
+    try {
+      const accessToken = await TokenRefreshService.getValidAccessToken(this.userId);
+      
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({
+        access_token: accessToken,
+      });
+      
+      this.calendar = google.calendar({
+        version: "v3",
+        auth: oauth2Client,
+      });
+    } catch (error) {
+      console.error('Failed to initialize calendar:', error);
+      throw new Error('Calendar authentication failed');
+    } 
   }
 
   async createEvent(appointment, user) {
+    await this.initializeCalendar();
     try {
       // Format the date properly
       const appointmentDate = new Date(appointment.date);
@@ -62,6 +74,7 @@ class GoogleCalendarService {
   }
 
   async updateEvent(eventId, appointment) {
+    await this.initializeCalendar();
     try {
       // Format the date properly
       const appointmentDate = new Date(appointment.date);
@@ -103,6 +116,7 @@ class GoogleCalendarService {
   }
 
   async deleteEvent(eventId) {
+    await this.initializeCalendar();
     try {
       await this.calendar.events.delete({
         calendarId: "primary",

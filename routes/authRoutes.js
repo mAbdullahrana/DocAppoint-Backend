@@ -10,10 +10,14 @@ router.post("/verify-otp", authController.verifyOtp);
 router.post("/resend-otp", authController.resendOtp);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password/:token", authController.resetPassword);
-router.post("/change-password", authController.protect, authController.changePassword);
+router.post(
+  "/change-password",
+  authController.protect,
+  authController.changePassword
+);
 
 router.get("/google-login", (req, res, next) => {
-  const role = req.query.role
+  const role = req.query.role;
   passport.authenticate("google", {
     scope: ["profile", "email"],
     state: role,
@@ -29,16 +33,16 @@ router.get(
   authController.googleCallback
 );
 
-
-
 router.get("/google-calendar", (req, res, next) => {
   passport.authenticate("google-calendar", {
     scope: [
-      "profile", 
+      "profile",
       "email",
-      "https://www.googleapis.com/auth/calendar"
+      "https://www.googleapis.com/auth/calendar",
       // "https://www.googleapis.com/auth/calendar.events"
     ],
+    accessType: "offline",
+    prompt: "consent",
   })(req, res, next);
 });
 

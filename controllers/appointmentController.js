@@ -54,8 +54,8 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
       patient.googleCalendarTokens?.accessToken
     ) {
       const calendarService = new GoogleCalendarService(
-        patient.googleCalendarTokens.accessToken
-      );
+        patient._id
+      );  
       const calendarEvent = await calendarService.createEvent(
         populatedAppointment,
         patient
@@ -71,7 +71,7 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
       doctor.googleCalendarTokens?.accessToken
     ) {
       const calendarService = new GoogleCalendarService(
-        doctor.googleCalendarTokens.accessToken
+        doctor._id
       );
       await calendarService.createEvent(populatedAppointment, doctor);
     }

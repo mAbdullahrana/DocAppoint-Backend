@@ -334,14 +334,19 @@ exports.googleCalendarCallback = catchAsync(async (req, res, next) => {
   }
 
   console.log("req.user from googleCalendarCallback", req.user);
+  console.log("Access Token:", req.user.accessToken);
+  console.log("Refresh Token:", req.user.refreshToken);
+
   const user = await User.findOne({ email: req.user.emails[0].value });
 
   if (!user) {
     return next(new AppError("User not found", 404));
   }
 
+  // Store both tokens
   user.googleCalendarTokens = {
     accessToken: req.user.accessToken,
+    refreshToken: req.user.refreshToken, // Add this line
   };
 
   // Enable calendar sync by default
