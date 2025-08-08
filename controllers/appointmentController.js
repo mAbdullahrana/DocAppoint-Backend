@@ -4,6 +4,7 @@ const AppError = require("../util/appError");
 const User = require("../models/userModel");
 const { getIO } = require("../socket");
 const Notification = require("../models/notificationModel");
+const GoogleCalendarService = require("../util/googleCalendarService");
 
 exports.createAppointment = catchAsync(async (req, res, next) => {
   const { doctor, date, slotStart, slotEnd } = req.body;
@@ -43,10 +44,49 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
     .populate("patient", "name email phone")
     .populate("doctor", "name email phone");
 
+  try {
+    const [patient, doctor] = await Promise.all([
+      User.findById(populatedAppointment.patient._id),
+      User.findById(populatedAppointment.doctor._id),
+    ]);
+    if (
+      patient.calendarSyncEnabled &&
+      patient.googleCalendarTokens?.accessToken
+    ) {
+      const calendarService = new GoogleCalendarService(
+        patient.googleCalendarTokens.accessToken
+      );
+      const calendarEvent = await calendarService.createEvent(
+        populatedAppointment,
+        patient
+      );
+
+      // Save the Google Calendar event ID
+      appointment.googleCalendarEventId = calendarEvent.id;
+      await appointment.save({ validateBeforeSave: false });
+    }
+
+    if (
+      doctor.calendarSyncEnabled &&
+      doctor.googleCalendarTokens?.accessToken
+    ) {
+      const calendarService = new GoogleCalendarService(
+        doctor.googleCalendarTokens.accessToken
+      );
+      await calendarService.createEvent(populatedAppointment, doctor);
+    }
+  } catch (error) {
+    throw new AppError(error.message, 500);
+  }
+
   const notification = await Notification.create({
     type: "appointment",
     title: "New Appointment",
-    message: `You have a new appointment with ${populatedAppointment.patient.name} on ${new Date(populatedAppointment.date).toLocaleDateString()} at ${populatedAppointment.slotStart}`,
+    message: `You have a new appointment with ${
+      populatedAppointment.patient.name
+    } on ${new Date(populatedAppointment.date).toLocaleDateString()} at ${
+      populatedAppointment.slotStart
+    }`,
     user: populatedAppointment.doctor._id,
   });
 
@@ -120,9 +160,6 @@ exports.getAllAppointments = catchAsync(async (req, res, next) => {
 });
 
 exports.updateAppointment = catchAsync(async (req, res, next) => {
-  console.log("req.body", req.body);
-
-  // Check if user is authenticated
   if (!req.user) {
     return next(
       new AppError("You must be logged in to update appointments", 401)
@@ -154,6 +191,25 @@ exports.updateAppointment = catchAsync(async (req, res, next) => {
     .populate("patient", "name email phone")
     .populate("doctor", "name email phone");
 
+  // if (updatedAppointment.googleCalendarEventId) {
+  //   try {
+  //     const patient = await User.findById(updatedAppointment.patient._id);
+  //     if (
+  //       patient.calendarSyncEnabled &&
+  //       patient.googleCalendarTokens?.accessToken
+  //     ) {
+  //       const calendarService = new GoogleCalendarService(
+  //         patient.googleCalendarTokens.accessToken
+  //       );
+  //       await calendarService.updateEvent(
+  //         updatedAppointment.googleCalendarEventId,
+  //         updatedAppointment
+  //       );
+  //     }
+  //   } catch (error) {
+  //     throw new AppError(error.message, 500);
+  //   }
+  // }
   // Emit socket event for appointment update
   try {
     const io = getIO();
